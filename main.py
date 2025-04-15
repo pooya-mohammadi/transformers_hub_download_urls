@@ -4,7 +4,7 @@ from huggingface_hub.utils import filter_repo_objects
 from huggingface_hub.constants import REPO_TYPES
 from os.path import join, split, exists
 import os
-from deep_utils import AsyncDownloadUtils
+from deep_utils import AsyncDownloadUtils, DownloadUtils
 
 
 async def get_urls(
@@ -45,7 +45,11 @@ async def get_urls(
         download_path = join(download_path, repo_id.split("/")[1])
         print(f"Downloading to {download_path}")
         os.makedirs(download_path, exist_ok=True)
-        await AsyncDownloadUtils.download_urls(dl_urls, download_path, remove_to_get_local_file_path=f"https://huggingface.co/{repo_type}s/{repo_id}/resolve/main/")
+        remove_to_get_local_file_path = f"https://huggingface.co/{repo_type}s/{repo_id}/resolve/main/"
+        if not do_async:
+            DownloadUtils.download_urls(dl_urls, download_path, remove_to_get_local_file_path)
+        else:
+            await AsyncDownloadUtils.download_urls(dl_urls, download_path, remove_to_get_local_file_path)
         print("Download is over, Enjoy :)")
     return dl_urls
 
@@ -54,5 +58,5 @@ if __name__ == '__main__':
     from dotenv import load_dotenv
     load_dotenv()
     login_token = os.getenv("login_token")
-    local_files = asyncio.run(get_urls("wanglab/LLD-MMRI-MedSAM2", token=login_token, repo_type="dataset", download=True))
+    local_files = asyncio.run(get_urls("wanglab/CT_DeepLesion-MedSAM2", token=login_token, repo_type="dataset", download=True))
     print(local_files)
