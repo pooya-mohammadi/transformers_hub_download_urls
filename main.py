@@ -17,6 +17,7 @@ async def get_urls(
         ignore_patterns: Optional[Union[List[str], str]] = None,
         download: bool = False,
         download_path: str = ".",
+        do_async: bool = False,
 ) -> List[str]:
     if repo_type is None:
         repo_type = "model"
