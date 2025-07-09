@@ -103,13 +103,21 @@ async def aget_urls(
         print("Download is over, Enjoy :)")
     return dl_urls
 if __name__ == '__main__':
+    from argparse import ArgumentParser
+    parser = ArgumentParser()
+    parser.add_argument("-data", default="data.json")
+    parser.add_argument("--reverse", action="store_true")
+
+    args = parser.parse_args()
     # import asyncio
     from dotenv import load_dotenv
     repo_or_dataset_id = "ibrahimhamamci/CT-RATE"
     # repo_or_dataset_id = "wanglab/CT_DeepLesion-MedSAM2"
     from deep_utils import JsonUtils
 
-    filtered_repo_files = JsonUtils.load("data.json")
+    filtered_repo_files = JsonUtils.load(args.data)
+    if args.reverse:
+        filtered_repo_files = filtered_repo_files[::-1]
     # filtered_repo_files  =
     load_dotenv()
     login_token = os.getenv("login_token")
