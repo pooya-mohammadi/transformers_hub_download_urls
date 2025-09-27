@@ -4,7 +4,7 @@ from huggingface_hub.utils import filter_repo_objects
 from huggingface_hub.constants import REPO_TYPES
 from os.path import join, split, exists
 import os
-from deep_utils import AsyncDownloadUtils, DownloadUtils
+from deep_utils import AsyncDownloadUtils, DownloadUtils, StringUtils
 
 
 def get_urls(
@@ -17,10 +17,11 @@ def get_urls(
         ignore_patterns: Optional[Union[List[str], str]] = None,
         download: bool = False,
         download_path: str = ".",
-        filtered_repo_files:str = None,
-        resolve:str = "resolve",
-cookies=None,
-        )    -> List[str]:
+        filtered_repo_files: str = None,
+        resolve: str = "resolve",
+        ignore_names: list[str] = None,
+        cookies=None,
+) -> List[str]:
     if repo_type is None:
         repo_type = "model"
     if repo_type not in REPO_TYPES:
@@ -36,14 +37,19 @@ cookies=None,
     assert repo_info.sha is not None, "Repo info returned from server must have a revision sha."
     filtered_repo_files = list(
         filter_repo_objects(
-            items=filtered_repo_files or [f.rfilename for f in repo_info.siblings] ,
+            items=filtered_repo_files or [f.rfilename for f in repo_info.siblings],
             allow_patterns=allow_patterns,
             ignore_patterns=ignore_patterns,
         )
     )
+    for item in ignore_names:
+        if item in filtered_repo_files:
+            filtered_repo_files.remove(item)
+        else:
+            StringUtils.print(f"file: {item} is not in the filtered_repo_files")
     dl_urls = [hf_hub_url(repo_id, f) for f in filtered_repo_files]
     if resolve != "resolve":
-        dl_urls = [item.replace("/resolve/",f"/{resolve}/" ) for item in dl_urls]
+        dl_urls = [item.replace("/resolve/", f"/{resolve}/") for item in dl_urls]
     if repo_type == "dataset":
         dl_urls = [item.replace("https://huggingface.co", "https://huggingface.co/datasets") for item in dl_urls]
     if download:
@@ -66,8 +72,8 @@ async def aget_urls(
         ignore_patterns: Optional[Union[List[str], str]] = None,
         download: bool = False,
         download_path: str = ".",
-        filtered_repo_files:str = None,
-        )    -> List[str]:
+        filtered_repo_files: str = None,
+) -> List[str]:
     if repo_type is None:
         repo_type = "model"
     if repo_type not in REPO_TYPES:
@@ -102,32 +108,46 @@ async def aget_urls(
             await AsyncDownloadUtils.download_urls(dl_urls, download_path, remove_to_get_local_file_path)
         print("Download is over, Enjoy :)")
     return dl_urls
+
+
 if __name__ == '__main__':
     from argparse import ArgumentParser
+
     parser = ArgumentParser()
-    parser.add_argument("-data", default="data.json")
+    parser.add_argument("-data", default=None)
     parser.add_argument("--reverse", action="store_true")
+    parser.add_argument("--ts", action="store_true")
+    parser.add_argument("-id", default="FOMO25/FOMO-MRI")
+    parser.add_argument("-out", default="/home/aicvi/projects/MRI/fomo-60k")
+    parser.add_argument("-repo_type", default="dataset")
 
     args = parser.parse_args()
     # import asyncio
     from dotenv import load_dotenv
-    repo_or_dataset_id = "ibrahimhamamci/CT-RATE"
-    # repo_or_dataset_id = "wanglab/CT_DeepLesion-MedSAM2"
     from deep_utils import JsonUtils
 
-    filtered_repo_files = JsonUtils.load(args.data)
-    if args.reverse:
-        filtered_repo_files = filtered_repo_files[::-1]
-    # filtered_repo_files  =
+    # repo_or_dataset_id = "ibrahimhamamci/CT-RATE"
+    # repo_or_dataset_id = "wanglab/CT_DeepLesion-MedSAM2"
+    repo_or_dataset_id = args.id
+
+    if args.data:
+        filtered_repo_files = JsonUtils.load(args.data)
+        if args.reverse:
+            filtered_repo_files = filtered_repo_files[::-1]
+        if args.ts:
+            filtered_repo_files = [item.replace("dataset", "dataset/ts_seg/ts_total") for item in filtered_repo_files]
+    else:
+        filtered_repo_files = None
     load_dotenv()
     login_token = os.getenv("login_token")
     cookies = "/home/aicvi/Desktop/huggingface_cookies.txt"
     from http.cookiejar import MozillaCookieJar
+
     jar = MozillaCookieJar(cookies)
     jar.load()
-    get_urls(repo_or_dataset_id, token=login_token, repo_type="dataset", download=True,
-             filtered_repo_files=filtered_repo_files, cookies = jar,
-             download_path="/media/aicvi/Elements/CT/Ibrahim-CT-RATE")
+    get_urls(repo_or_dataset_id, token=login_token, repo_type=args.repo_type, download=True,
+             filtered_repo_files=filtered_repo_files, cookies=jar,
+             download_path=args.out, ignore_names=[".gitattributes", "README.md"])
     # get_urls(repo_or_dataset_id, token=login_token, repo_type="dataset", download=True, )
     # local_files = asyncio.run(get_urls(repo_or_dataset_id, token=None, repo_type="dataset", download=True))
     # print(local_files)
