@@ -1,3 +1,4 @@
+import random
 from typing import Optional, Union, List
 from huggingface_hub import HfApi, hf_hub_url, snapshot_download
 from huggingface_hub.utils import filter_repo_objects
@@ -21,6 +22,7 @@ def get_urls(
         resolve: str = "resolve",
         ignore_names: list[str] = None,
         cookies=None,
+        shuffle=False
 ) -> List[str]:
     if repo_type is None:
         repo_type = "model"
@@ -52,6 +54,8 @@ def get_urls(
         dl_urls = [item.replace("/resolve/", f"/{resolve}/") for item in dl_urls]
     if repo_type == "dataset":
         dl_urls = [item.replace("https://huggingface.co", "https://huggingface.co/datasets") for item in dl_urls]
+    if shuffle:
+        random.shuffle(dl_urls)
     if download:
         download_path = join(download_path, repo_id.split("/")[1])
         print(f"Downloading to {download_path}")
@@ -116,9 +120,14 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("-data", default=None)
     parser.add_argument("--reverse", action="store_true")
+    parser.add_argument("--shuffle", action="store_true")
     parser.add_argument("--ts", action="store_true")
-    parser.add_argument("-id", default="FOMO25/FOMO-MRI")
-    parser.add_argument("-out", default="/home/aicvi/projects/MRI/fomo-60k")
+    parser.add_argument("-id", default="mrmrx/CADS-dataset")
+    parser.add_argument("-resolve", default="blob")
+    # parser.add_argument("-id", default="wanglab/LLD-MMRI-MedSAM2")
+    parser.add_argument("-out", default="/media/aicvi/Hard-24T-15-OCT-2025/CT/")
+    # parser.add_argument("-out", default="/media/aicvi/Hard-24T-15-OCT-2025/CT/CADS-dataset")
+    # parser.add_argument("-out", default="/media/aicvi/Hard-24T-15-OCT-2025/CT/LLD-MMRI-MedSAM2"")
     parser.add_argument("-repo_type", default="dataset")
 
     args = parser.parse_args()
@@ -147,7 +156,7 @@ if __name__ == '__main__':
     jar.load()
     get_urls(repo_or_dataset_id, token=login_token, repo_type=args.repo_type, download=True,
              filtered_repo_files=filtered_repo_files, cookies=jar,
-             download_path=args.out, ignore_names=[".gitattributes", "README.md"])
+             download_path=args.out, ignore_names=[".gitattributes", "README.md"], shuffle=args.shuffle)
     # get_urls(repo_or_dataset_id, token=login_token, repo_type="dataset", download=True, )
     # local_files = asyncio.run(get_urls(repo_or_dataset_id, token=None, repo_type="dataset", download=True))
     # print(local_files)
