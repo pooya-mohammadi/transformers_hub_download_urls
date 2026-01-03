@@ -6,6 +6,7 @@ from huggingface_hub.constants import REPO_TYPES
 from os.path import join, split, exists
 import os
 from deep_utils import AsyncDownloadUtils, DownloadUtils, StringUtils
+from skimage.morphology import max_tree
 
 
 def get_urls(
@@ -22,7 +23,9 @@ def get_urls(
         resolve: str = "resolve",
         ignore_names: list[str] = None,
         cookies=None,
-        shuffle=False
+        shuffle=False,
+max_try=1,
+        verbose=False
 ) -> List[str]:
     if repo_type is None:
         repo_type = "model"
@@ -61,7 +64,12 @@ def get_urls(
         print(f"Downloading to {download_path}")
         os.makedirs(download_path, exist_ok=True)
         remove_to_get_local_file_path = f"https://huggingface.co/{repo_type}s/{repo_id}/{resolve}/main/"
-        DownloadUtils.download_urls(dl_urls, download_path, remove_to_get_local_file_path, cookies=cookies)
+        for try_index in range(max_try):
+            try:
+                DownloadUtils.download_urls(dl_urls, download_path, remove_to_get_local_file_path, cookies=cookies, verbose=verbose)
+            except Exception as e:
+                random.shuffle(dl_urls)
+                StringUtils.print(f"{try_index=}\n{e}")
         print("Download is over, Enjoy :)")
     return dl_urls
 
@@ -119,9 +127,11 @@ if __name__ == '__main__':
 
     parser = ArgumentParser()
     parser.add_argument("-data", default=None)
+    parser.add_argument("-max_try", default=10, type=int)
     parser.add_argument("--reverse", action="store_true")
     parser.add_argument("--shuffle", action="store_true")
     parser.add_argument("--ts", action="store_true")
+    parser.add_argument("--verbose", action="store_true")
     parser.add_argument("-id", default="mrmrx/CADS-dataset")
     parser.add_argument("-resolve", default="blob")
     # parser.add_argument("-id", default="wanglab/LLD-MMRI-MedSAM2")
@@ -156,7 +166,8 @@ if __name__ == '__main__':
     jar.load()
     get_urls(repo_or_dataset_id, token=login_token, repo_type=args.repo_type, download=True,
              filtered_repo_files=filtered_repo_files, cookies=jar,
-             download_path=args.out, ignore_names=[".gitattributes", "README.md"], shuffle=args.shuffle)
+             download_path=args.out, ignore_names=[".gitattributes", "README.md"], shuffle=args.shuffle,
+             max_try=args.max_try, verbose=args.verbose)
     # get_urls(repo_or_dataset_id, token=login_token, repo_type="dataset", download=True, )
     # local_files = asyncio.run(get_urls(repo_or_dataset_id, token=None, repo_type="dataset", download=True))
     # print(local_files)
